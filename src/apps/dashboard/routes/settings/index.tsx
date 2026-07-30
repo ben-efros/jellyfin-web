@@ -40,6 +40,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     config.QuickConnectAvailable = formData.get('QuickConnectAvailable')?.toString() === 'on';
     config.LibraryScanFanoutConcurrency = parseInt(formData.get('LibraryScanFanoutConcurrency')?.toString() || '0', 10);
     config.ParallelImageEncodingLimit = parseInt(formData.get('ParallelImageEncodingLimit')?.toString() || '0', 10);
+    config.MaxImageDimension = parseInt(formData.get('MaxImageDimension')?.toString() || '0', 10);
+    config.ImageFillSizeQuantizationStep = parseInt(formData.get('ImageFillSizeQuantizationStep')?.toString() || '0', 10);
 
     await getSystemApi(api)
         .updateConfiguration({ serverConfiguration: config });
@@ -253,6 +255,39 @@ export const Component = () => {
                                 label={globalize.translate('LabelParallelImageEncodingLimit')}
                                 helperText={globalize.translate('LabelParallelImageEncodingLimitHelp')}
                                 defaultValue={config.ParallelImageEncodingLimit || ''}
+                                slotProps={{
+                                    htmlInput: {
+                                        min: 0,
+                                        step: 1
+                                    }
+                                }}
+                            />
+
+                            <Typography variant='h2'>{globalize.translate('HeaderImageProcessingAdvanced')}</Typography>
+                            <Typography variant='body2' color='text.secondary'>
+                                {globalize.translate('HeaderImageProcessingAdvancedHelp')}
+                            </Typography>
+
+                            <TextField
+                                name='MaxImageDimension'
+                                type='number'
+                                label={globalize.translate('LabelMaxImageDimension')}
+                                helperText={globalize.translate('LabelMaxImageDimensionHelp')}
+                                defaultValue={config.MaxImageDimension || ''}
+                                slotProps={{
+                                    htmlInput: {
+                                        min: 0,
+                                        step: 1
+                                    }
+                                }}
+                            />
+
+                            <TextField
+                                name='ImageFillSizeQuantizationStep'
+                                type='number'
+                                label={globalize.translate('LabelImageFillSizeQuantizationStep')}
+                                helperText={globalize.translate('LabelImageFillSizeQuantizationStepHelp')}
+                                defaultValue={config.ImageFillSizeQuantizationStep || ''}
                                 slotProps={{
                                     htmlInput: {
                                         min: 0,
