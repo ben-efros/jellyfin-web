@@ -7,6 +7,7 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useLocalizationOptions } from 'apps/dashboard/features/settings/api/useLocalizationOptions';
 import ImageRequestTelemetryPanel from 'apps/dashboard/features/settings/components/ImageRequestTelemetryPanel';
+import MetadataRefreshTelemetryPanel from 'apps/dashboard/features/settings/components/MetadataRefreshTelemetryPanel';
 import Loading from 'components/loading/LoadingComponent';
 import Page from 'components/Page';
 import { QUERY_KEY as CONFIGURATION_QUERY_KEY, useConfiguration } from 'hooks/useConfiguration';
@@ -46,6 +47,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     config.ImageFillSizeQuantizationStep = parseInt(formData.get('ImageFillSizeQuantizationStep')?.toString() || '0', 10);
     config.EnableImageRequestTelemetry = formData.get('EnableImageRequestTelemetry')?.toString() === 'on';
     config.ClearImageCacheOnTelemetryEnable = formData.get('ClearImageCacheOnTelemetryEnable')?.toString() === 'on';
+    config.EnableMetadataRefreshTelemetry = formData.get('EnableMetadataRefreshTelemetry')?.toString() === 'on';
 
     await getSystemApi(api)
         .updateConfiguration({ serverConfiguration: config });
@@ -331,6 +333,28 @@ export const Component = () => {
                             </FormControl>
 
                             <ImageRequestTelemetryPanel enabled={!!config.EnableImageRequestTelemetry} />
+
+                            <Typography variant='h2'>{globalize.translate('HeaderMetadataRefreshTelemetryAdvanced')}</Typography>
+                            <Typography variant='body2' color='text.secondary'>
+                                {globalize.translate('HeaderMetadataRefreshTelemetryAdvancedHelp')}
+                            </Typography>
+
+                            <FormControl>
+                                <FormControlLabel
+                                    control={
+                                        <Checkbox
+                                            name='EnableMetadataRefreshTelemetry'
+                                            defaultChecked={config.EnableMetadataRefreshTelemetry}
+                                        />
+                                    }
+                                    label={globalize.translate('LabelEnableMetadataRefreshTelemetry')}
+                                />
+                                <FormHelperText>
+                                    {globalize.translate('LabelEnableMetadataRefreshTelemetryHelp')}
+                                </FormHelperText>
+                            </FormControl>
+
+                            <MetadataRefreshTelemetryPanel enabled={!!config.EnableMetadataRefreshTelemetry} />
 
                             <Button type='submit' size='large'>
                                 {globalize.translate('Save')}

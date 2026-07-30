@@ -33,6 +33,13 @@ declare module '@jellyfin/sdk/lib/generated-client/models/server-configuration' 
          * transitions from disabled to enabled. Automatically reset to false once consumed.
          */
         ClearImageCacheOnTelemetryEnable?: boolean | null;
+
+        /**
+         * Whether telemetry for metadata provider fetches (item type, provider name/type, fetch duration, and
+         * found/not-found/error outcome) is being collected. Disabled by default; toggling this from disabled
+         * to enabled always resets the collected data to a blank state.
+         */
+        EnableMetadataRefreshTelemetry?: boolean | null;
     }
 }
 
