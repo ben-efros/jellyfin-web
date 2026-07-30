@@ -6,6 +6,7 @@ import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useLocalizationOptions } from 'apps/dashboard/features/settings/api/useLocalizationOptions';
+import ImageRequestTelemetryPanel from 'apps/dashboard/features/settings/components/ImageRequestTelemetryPanel';
 import Loading from 'components/loading/LoadingComponent';
 import Page from 'components/Page';
 import { QUERY_KEY as CONFIGURATION_QUERY_KEY, useConfiguration } from 'hooks/useConfiguration';
@@ -18,6 +19,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import InputAdornment from '@mui/material/InputAdornment';
 import FormControl from '@mui/material/FormControl';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import FormHelperText from '@mui/material/FormHelperText';
 import Checkbox from '@mui/material/Checkbox';
 import Button from '@mui/material/Button';
 import Link from '@mui/material/Link';
@@ -42,6 +44,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     config.ParallelImageEncodingLimit = parseInt(formData.get('ParallelImageEncodingLimit')?.toString() || '0', 10);
     config.MaxImageDimension = parseInt(formData.get('MaxImageDimension')?.toString() || '0', 10);
     config.ImageFillSizeQuantizationStep = parseInt(formData.get('ImageFillSizeQuantizationStep')?.toString() || '0', 10);
+    config.EnableImageRequestTelemetry = formData.get('EnableImageRequestTelemetry')?.toString() === 'on';
+    config.ClearImageCacheOnTelemetryEnable = formData.get('ClearImageCacheOnTelemetryEnable')?.toString() === 'on';
 
     await getSystemApi(api)
         .updateConfiguration({ serverConfiguration: config });
@@ -295,6 +299,38 @@ export const Component = () => {
                                     }
                                 }}
                             />
+
+                            <FormControl>
+                                <FormControlLabel
+                                    control={
+                                        <Checkbox
+                                            name='EnableImageRequestTelemetry'
+                                            defaultChecked={config.EnableImageRequestTelemetry}
+                                        />
+                                    }
+                                    label={globalize.translate('LabelEnableImageRequestTelemetry')}
+                                />
+                                <FormHelperText>
+                                    {globalize.translate('LabelEnableImageRequestTelemetryHelp')}
+                                </FormHelperText>
+                            </FormControl>
+
+                            <FormControl>
+                                <FormControlLabel
+                                    control={
+                                        <Checkbox
+                                            name='ClearImageCacheOnTelemetryEnable'
+                                            defaultChecked={config.ClearImageCacheOnTelemetryEnable}
+                                        />
+                                    }
+                                    label={globalize.translate('LabelClearImageCacheOnTelemetryEnable')}
+                                />
+                                <FormHelperText>
+                                    {globalize.translate('LabelClearImageCacheOnTelemetryEnableHelp')}
+                                </FormHelperText>
+                            </FormControl>
+
+                            <ImageRequestTelemetryPanel enabled={!!config.EnableImageRequestTelemetry} />
 
                             <Button type='submit' size='large'>
                                 {globalize.translate('Save')}
