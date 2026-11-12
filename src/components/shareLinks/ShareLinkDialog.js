@@ -1,0 +1,224 @@
+import dialogHelper from '../dialogHelper/dialogHelper';
+import layoutManager from '../layoutManager';
+import globalize from '../../lib/globalize';
+import toast from '../toast/toast';
+import { copy } from '../../scripts/clipboard';
+
+import '../../elements/emby-button/emby-button';
+import '../../elements/emby-button/paper-icon-button-light';
+import '../../elements/emby-input/emby-input';
+import '../formdialog.scss';
+import 'material-design-icons-iconfont';
+
+import { ShareLinkError, createShareLink } from './ShareLinksApi';
+
+const DURATION_PRESETS = [
+    { labelKey: 'ShareLinkDuration1Hour', durationSeconds: 3600 },
+    { labelKey: 'ShareLinkDuration24Hours', durationSeconds: 86400 },
+    { labelKey: 'ShareLinkDuration7Days', durationSeconds: 604800 }
+];
+
+function setError(dlg, message) {
+    const errorElement = dlg.querySelector('.shareLinkError');
+    errorElement.textContent = message || '';
+    errorElement.classList.toggle('hide', !message);
+}
+
+function hideResult(dlg) {
+    dlg.querySelector('.shareLinkResult').classList.add('hide');
+}
+
+function selectPreset(dlg, button) {
+    dlg.querySelectorAll('.btnPreset').forEach(btn => {
+        const isSelected = btn === button;
+        btn.classList.toggle('raised', isSelected);
+        btn.classList.toggle('button-flat', !isSelected);
+        btn.setAttribute('aria-pressed', String(isSelected));
+    });
+
+    const expirationInput = dlg.querySelector('#txtShareLinkExpiration');
+    if (expirationInput.value) {
+        expirationInput.value = '';
+    }
+
+    hideResult(dlg);
+    setError(dlg, null);
+}
+
+function clearPresetSelection(dlg) {
+    dlg.querySelectorAll('.btnPreset').forEach(btn => {
+        btn.classList.remove('raised');
+        btn.classList.add('button-flat');
+        btn.setAttribute('aria-pressed', 'false');
+    });
+
+    hideResult(dlg);
+    setError(dlg, null);
+}
+
+function copyShareUrl(dlg) {
+    const urlInput = dlg.querySelector('#txtShareLinkUrl');
+    if (!urlInput.value) {
+        return;
+    }
+
+    copy(urlInput.value).then(() => {
+        toast(globalize.translate('ShareLinkCopied'));
+    }).catch(() => {
+        /* The URL stays visible in the dialog for manual copying. */
+    });
+}
+
+function getEditorHtml() {
+    let html = '';
+
+    html += '<div class="formDialogHeader">';
+    html += `<button is="paper-icon-button-light" class="btnCancel autoSize" tabindex="-1" title="${globalize.translate('ButtonBack')}"><span class="material-icons arrow_back" aria-hidden="true"></span></button>`;
+    html += '<h3 class="formDialogHeaderTitle">';
+    html += globalize.translate('ShareLink');
+    html += '</h3>';
+    html += '</div>';
+
+    html += '<div class="formDialogContent smoothScrollY" style="padding-top:2em;">';
+    html += '<div class="dialogContentInner dialog-content-centered">';
+    html += '<form class="shareLinkForm" style="margin:auto;">';
+
+    html += '<div class="fieldDescription">';
+    html += globalize.translate('ShareLinkDescription');
+    html += '</div>';
+
+    html += '<div class="selectContainer fldShareLinkDuration">';
+    html += `<label class="selectLabel">${globalize.translate('LabelShareLinkDuration')}</label>`;
+    html += '<div class="shareLinkPresets" role="group">';
+    for (const preset of DURATION_PRESETS) {
+        html += `<button type="button" is="emby-button" class="btnPreset button-flat" data-duration="${preset.durationSeconds}" aria-pressed="false">${globalize.translate(preset.labelKey)}</button>`;
+    }
+    html += '</div>';
+    html += '</div>';
+
+    html += '<div class="selectContainer fldShareLinkExpiration">';
+    html += `<input is="emby-input" id="txtShareLinkExpiration" type="datetime-local" label="${globalize.translate('LabelShareLinkExpiration')}" />`;
+    html += '</div>';
+
+    html += '<div class="shareLinkResult hide selectContainer">';
+    html += `<label class="selectLabel">${globalize.translate('LabelShareLinkUrl')}</label>`;
+    html += '<div class="shareLinkUrlRow">';
+    html += `<input is="emby-input" id="txtShareLinkUrl" type="text" readonly="readonly" label="${globalize.translate('LabelShareLinkUrl')}" />`;
+    html += `<button type="button" is="emby-button" class="btnCopyUrl raised" title="${globalize.translate('Copy')}">${globalize.translate('Copy')}</button>`;
+    html += '</div>';
+    html += '</div>';
+
+    html += '<div class="shareLinkError fieldDescription hide" role="alert"></div>';
+
+    html += '<div class="formDialogFooter">';
+    html += `<button is="emby-button" type="submit" class="raised btnSubmit block formDialogFooterItem button-submit">${globalize.translate('ButtonCreateShareLink')}</button>`;
+    html += '</div>';
+
+    html += '</form>';
+    html += '</div>';
+    html += '</div>';
+
+    return html;
+}
+
+class ShareLinkDialog {
+    constructor(options) {
+        this.options = options;
+    }
+
+    onSubmit(e, dlg) {
+        e.preventDefault();
+
+        const selectedPreset = dlg.querySelector('.btnPreset.raised');
+        const expirationInput = dlg.querySelector('#txtShareLinkExpiration');
+        const expirationValue = expirationInput.value;
+
+        let body = {};
+
+        if (selectedPreset) {
+            body = { DurationSeconds: parseInt(selectedPreset.dataset.duration, 10) };
+        } else if (expirationValue) {
+            const expiresAt = new Date(expirationValue);
+            if (isNaN(expiresAt.getTime()) || expiresAt.getTime() <= Date.now()) {
+                setError(dlg, globalize.translate('MessageShareLinkInvalidExpiration'));
+                return;
+            }
+            body = { ExpiresAt: expiresAt.toISOString() };
+        } else {
+            setError(dlg, globalize.translate('MessageSelectShareLinkDuration'));
+            return;
+        }
+
+        hideResult(dlg);
+        setError(dlg, null);
+
+        const submitButton = dlg.querySelector('.btnSubmit');
+        submitButton.disabled = true;
+
+        createShareLink(this.options.itemId, body, this.options.serverId).then(dto => {
+            submitButton.disabled = false;
+
+            const urlInput = dlg.querySelector('#txtShareLinkUrl');
+            urlInput.value = dto.url;
+            dlg.querySelector('.shareLinkResult').classList.remove('hide');
+
+            copy(dto.url).then(() => {
+                toast(globalize.translate('ShareLinkCopied'));
+            }).catch(() => {
+                /* The URL stays visible in the dialog for manual copying. */
+            });
+        }).catch(error => {
+            submitButton.disabled = false;
+
+            let message = globalize.translate('MessageShareLinkCreateFailed');
+            if (error instanceof ShareLinkError) {
+                if (error.shareLinkErrorCode) {
+                    message += ` (${error.shareLinkErrorCode})`;
+                } else if (error.message) {
+                    message += ` ${error.message}`;
+                }
+            }
+
+            setError(dlg, message);
+        });
+    }
+
+    show() {
+        const dialogOptions = {
+            removeOnClose: true,
+            scrollY: false
+        };
+
+        if (layoutManager.tv) {
+            dialogOptions.size = 'fullscreen';
+        } else {
+            dialogOptions.size = 'small';
+        }
+
+        const dlg = dialogHelper.createDialog(dialogOptions);
+
+        dlg.classList.add('formDialog');
+        dlg.innerHTML = getEditorHtml();
+
+        dlg.querySelector('.btnCancel').addEventListener('click', () => dialogHelper.close(dlg));
+
+        dlg.querySelector('.shareLinkForm').addEventListener('submit', e => this.onSubmit(e, dlg));
+
+        dlg.querySelectorAll('.btnPreset').forEach(btn => {
+            btn.addEventListener('click', () => selectPreset(dlg, btn));
+        });
+
+        const expirationInput = dlg.querySelector('#txtShareLinkExpiration');
+        expirationInput.min = new Date().toISOString().slice(0, 16);
+        expirationInput.addEventListener('input', () => clearPresetSelection(dlg));
+
+        dlg.querySelector('.btnCopyUrl').addEventListener('click', () => copyShareUrl(dlg));
+
+        return new Promise(resolve => {
+            dlg.addEventListener('close', resolve);
+            dialogHelper.open(dlg);
+        });
+    }
+}
+
+export default ShareLinkDialog;

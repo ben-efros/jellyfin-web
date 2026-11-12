@@ -339,7 +339,7 @@ export async function getCommands(options) {
         });
     }
 
-    if (!browser.tv && options.share === true && itemHelper.canShare(item, user)) {
+    if (!browser.tv && options.share === true && itemHelper.canShareLink(item)) {
         commands.push({
             name: globalize.translate('Share'),
             id: 'share',
@@ -583,13 +583,15 @@ function executeCommand(item, id, options) {
             case 'delete':
                 deleteItem(apiClient, item).then(getResolveFunction(resolve, id, true, true, itemId), getResolveFunction(resolve, id));
                 break;
-            case 'share':
-                navigator.share({
-                    title: item.Name,
-                    text: item.Overview,
-                    url: `${apiClient.serverAddress()}/web/${appRouter.getRouteUrl(item)}`
+            case 'share': {
+                import('./shareLinks/ShareLinkDialog').then(({ default: ShareLinkDialog }) => {
+                    new ShareLinkDialog({
+                        itemId: item.Id,
+                        serverId: item.ServerId
+                    }).show();
                 });
                 break;
+            }
             case 'album':
                 appRouter.showItem(item.AlbumId, item.ServerId);
                 getResolveFunction(resolve, id)();

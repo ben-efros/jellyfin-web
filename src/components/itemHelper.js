@@ -240,6 +240,31 @@ export function canShare (item, user) {
     return user.Policy.EnablePublicSharing && appHost.supports(AppFeature.Sharing);
 }
 
+export function canShareLink (item) {
+    if (item.Type === 'Program') {
+        return false;
+    }
+    if (item.Type === 'TvChannel') {
+        return false;
+    }
+    if (item.Type === 'Timer') {
+        return false;
+    }
+    if (item.Type === 'SeriesTimer') {
+        return false;
+    }
+    if (item.Type === 'Recording' && item.Status !== 'Completed') {
+        return false;
+    }
+    if (isLocalItem(item)) {
+        return false;
+    }
+    // Server-side share links are created on behalf of an authorized user and
+    // enforce play access themselves (403), so no Web Share API support or
+    // public-sharing policy is required from the client.
+    return true;
+}
+
 export function enableDateAddedDisplay (item) {
     return !item.IsFolder && item.MediaType && item.Type !== 'Program' && item.Type !== 'TvChannel' && item.Type !== 'Trailer';
 }
@@ -363,6 +388,7 @@ export default {
     canEditSubtitles,
     canEditLyrics,
     canShare: canShare,
+    canShareLink: canShareLink,
     enableDateAddedDisplay: enableDateAddedDisplay,
     canMarkPlayed: canMarkPlayed,
     canRate: canRate,
