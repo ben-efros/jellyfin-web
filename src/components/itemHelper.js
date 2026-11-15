@@ -240,7 +240,21 @@ export function canShare (item, user) {
     return user.Policy.EnablePublicSharing && appHost.supports(AppFeature.Sharing);
 }
 
-export function canShareLink (item) {
+/**
+ * Whether the current user may create a scoped share link for this item.
+ *
+ * `user.CanShareMedia` is the server's effective answer after the server-wide
+ * policy and the user's own preference are combined, so when sharing is off the
+ * share and copy-stream actions are hidden instead of failing on click. The
+ * server re-checks the policy on every request, so this is a UI hint only.
+ * @param {object} item - The item to share.
+ * @param {object} [user] - The current user; when omitted only item rules apply.
+ * @returns {boolean} True when sharing is offered for this item.
+ */
+export function canShareLink (item, user) {
+    if (user && user.CanShareMedia === false) {
+        return false;
+    }
     if (item.Type === 'Program') {
         return false;
     }

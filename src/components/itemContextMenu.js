@@ -221,7 +221,7 @@ export async function getCommands(options) {
             // Copying a stream URL used to hand out the caller's own session
             // credential. It now mints a short-lived scoped share link instead, so the
             // action is only offered when the server policy lets this user share media.
-            if (!browser.tv && itemHelper.canShareLink(item)) {
+            if (!browser.tv && itemHelper.canShareLink(item, user)) {
                 commands.push({
                     name: globalize.translate('CopyStreamURL'),
                     id: 'copy-stream',
@@ -363,7 +363,7 @@ export async function getCommands(options) {
         });
     }
 
-    if (!browser.tv && options.share === true && itemHelper.canShareLink(item)) {
+    if (!browser.tv && options.share === true && itemHelper.canShareLink(item, user)) {
         commands.push({
             name: globalize.translate('Share'),
             id: 'share',
