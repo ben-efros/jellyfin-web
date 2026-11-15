@@ -41,6 +41,40 @@ function getAuthorizationHeaders(apiClient) {
     };
 }
 
+/**
+ * Converts the first character of a property name to lower case.
+ * @param {string} name - Property name from the response body.
+ * @returns {string} The same name starting with a lower-case character.
+ */
+function toCamelCase(name) {
+    return name.charAt(0).toLowerCase() + name.slice(1);
+}
+
+/**
+ * Normalises a server DTO to camelCase property names.
+ *
+ * The server negotiates PascalCase unless the request asks for the CamelCase
+ * profile, so responses arrive as `{ "Url": ... }`. Reading `dto.url` on that
+ * object yields undefined, which is how the share dialog came to put the
+ * literal string "undefined" on the clipboard. Normalising here keeps every
+ * caller in this module on one shape.
+ * @param {*} value - Parsed response body.
+ * @returns {*} The same value with camelCase property names.
+ */
+function normalizeKeys(value) {
+    if (Array.isArray(value)) {
+        return value.map(normalizeKeys);
+    }
+
+    if (value && typeof value === 'object') {
+        return Object.fromEntries(
+            Object.entries(value).map(([key, entry]) => [toCamelCase(key), normalizeKeys(entry)])
+        );
+    }
+
+    return value;
+}
+
 async function request(apiClient, url, options) {
     const response = await fetch(url, {
         ...options,
@@ -55,7 +89,7 @@ async function request(apiClient, url, options) {
             return undefined;
         }
 
-        return response.json();
+        return response.json().then(normalizeKeys);
     }
 
     const shareLinkErrorCode = response.headers.get('X-ShareLink-Error');

@@ -41,7 +41,11 @@ describe('ShareLinksApi', () => {
 
         const result = await createShareLink('item-1', { DurationSeconds: 3600 });
 
-        expect(result.Url).toContain('share_token=');
+        // The server returns PascalCase; the module normalises it so callers can
+        // read `url` and never copy the string "undefined".
+        expect(result.url).toContain('share_token=');
+        expect(result.id).toBe('abc');
+        expect(result.Url).toBeUndefined();
         expect(fetchMock).toHaveBeenCalledOnce();
 
         const [url, options] = fetchMock.mock.calls[0];

@@ -37,7 +37,13 @@ const COPY_STREAM_URL_DURATION_SECONDS = 3600;
  */
 function copyStreamUrl(api, item, itemId) {
     return createShareLink(itemId, { DurationSeconds: COPY_STREAM_URL_DURATION_SECONDS }, item.ServerId)
-        .then(shareLink => copy(shareLink.url))
+        .then(shareLink => {
+            if (!shareLink || !shareLink.url) {
+                throw new Error('Share link response did not include a URL');
+            }
+
+            return copy(shareLink.url);
+        })
         .then(() => {
             toast(globalize.translate('CopyStreamURLSuccess'));
         });

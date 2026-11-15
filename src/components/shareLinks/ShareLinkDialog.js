@@ -140,6 +140,11 @@ class ShareLinkDialog {
         createShareLink(this.options.itemId, body, this.options.serverId).then(dto => {
             submitButton.disabled = false;
 
+            if (!dto || !dto.url) {
+                setError(dlg, globalize.translate('MessageShareLinkCreateFailed'));
+                return;
+            }
+
             const urlInput = dlg.querySelector('#txtShareLinkUrl');
             urlInput.value = dto.url;
             dlg.querySelector('.shareLinkResult').classList.remove('hide');
