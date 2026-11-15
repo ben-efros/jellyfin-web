@@ -11,12 +11,7 @@ import '../formdialog.scss';
 import 'material-design-icons-iconfont';
 
 import { ShareLinkError, createShareLink } from './ShareLinksApi';
-
-const DURATION_PRESETS = [
-    { labelKey: 'ShareLinkDuration1Hour', durationSeconds: 3600 },
-    { labelKey: 'ShareLinkDuration24Hours', durationSeconds: 86400 },
-    { labelKey: 'ShareLinkDuration7Days', durationSeconds: 604800 }
-];
+import { DURATION_PRESETS, formatExpiration } from './shareLinkDurations';
 
 function setError(dlg, message) {
     const errorElement = dlg.querySelector('.shareLinkError');
@@ -28,6 +23,20 @@ function hideResult(dlg) {
     dlg.querySelector('.shareLinkResult').classList.add('hide');
 }
 
+function updateExpirationSummary(dlg) {
+    const summary = dlg.querySelector('.shareLinkExpiresSummary');
+    const selected = dlg.querySelector('.btnPreset.raised');
+
+    if (!selected) {
+        summary.classList.add('hide');
+        return;
+    }
+
+    const durationSeconds = parseInt(selected.dataset.duration, 10);
+    summary.textContent = globalize.translate('ShareLinkExpiresOn', formatExpiration(durationSeconds));
+    summary.classList.remove('hide');
+}
+
 function selectPreset(dlg, button) {
     dlg.querySelectorAll('.btnPreset').forEach(btn => {
         const isSelected = btn === button;
@@ -36,24 +45,9 @@ function selectPreset(dlg, button) {
         btn.setAttribute('aria-pressed', String(isSelected));
     });
 
-    const expirationInput = dlg.querySelector('#txtShareLinkExpiration');
-    if (expirationInput.value) {
-        expirationInput.value = '';
-    }
-
     hideResult(dlg);
     setError(dlg, null);
-}
-
-function clearPresetSelection(dlg) {
-    dlg.querySelectorAll('.btnPreset').forEach(btn => {
-        btn.classList.remove('raised');
-        btn.classList.add('button-flat');
-        btn.setAttribute('aria-pressed', 'false');
-    });
-
-    hideResult(dlg);
-    setError(dlg, null);
+    updateExpirationSummary(dlg);
 }
 
 function copyShareUrl(dlg) {
@@ -91,14 +85,13 @@ function getEditorHtml() {
     html += `<label class="selectLabel">${globalize.translate('LabelShareLinkDuration')}</label>`;
     html += '<div class="shareLinkPresets" role="group">';
     for (const preset of DURATION_PRESETS) {
-        html += `<button type="button" is="emby-button" class="btnPreset button-flat" data-duration="${preset.durationSeconds}" aria-pressed="false">${globalize.translate(preset.labelKey)}</button>`;
+        const cls = preset.isDefault ? 'btnPreset raised' : 'btnPreset button-flat';
+        html += `<button type="button" is="emby-button" class="${cls}" data-duration="${preset.durationSeconds}" aria-pressed="${preset.isDefault}">${globalize.translate(preset.labelKey)}</button>`;
     }
     html += '</div>';
     html += '</div>';
 
-    html += '<div class="selectContainer fldShareLinkExpiration">';
-    html += `<input is="emby-input" id="txtShareLinkExpiration" type="datetime-local" label="${globalize.translate('LabelShareLinkExpiration')}" />`;
-    html += '</div>';
+    html += '<div class="shareLinkExpiresSummary fieldDescription hide"></div>';
 
     html += '<div class="shareLinkResult hide selectContainer">';
     html += `<label class="selectLabel">${globalize.translate('LabelShareLinkUrl')}</label>`;
@@ -130,24 +123,13 @@ class ShareLinkDialog {
         e.preventDefault();
 
         const selectedPreset = dlg.querySelector('.btnPreset.raised');
-        const expirationInput = dlg.querySelector('#txtShareLinkExpiration');
-        const expirationValue = expirationInput.value;
 
-        let body = {};
-
-        if (selectedPreset) {
-            body = { DurationSeconds: parseInt(selectedPreset.dataset.duration, 10) };
-        } else if (expirationValue) {
-            const expiresAt = new Date(expirationValue);
-            if (isNaN(expiresAt.getTime()) || expiresAt.getTime() <= Date.now()) {
-                setError(dlg, globalize.translate('MessageShareLinkInvalidExpiration'));
-                return;
-            }
-            body = { ExpiresAt: expiresAt.toISOString() };
-        } else {
+        if (!selectedPreset) {
             setError(dlg, globalize.translate('MessageSelectShareLinkDuration'));
             return;
         }
+
+        const body = { DurationSeconds: parseInt(selectedPreset.dataset.duration, 10) };
 
         hideResult(dlg);
         setError(dlg, null);
@@ -208,11 +190,9 @@ class ShareLinkDialog {
             btn.addEventListener('click', () => selectPreset(dlg, btn));
         });
 
-        const expirationInput = dlg.querySelector('#txtShareLinkExpiration');
-        expirationInput.min = new Date().toISOString().slice(0, 16);
-        expirationInput.addEventListener('input', () => clearPresetSelection(dlg));
-
         dlg.querySelector('.btnCopyUrl').addEventListener('click', () => copyShareUrl(dlg));
+
+        updateExpirationSummary(dlg);
 
         return new Promise(resolve => {
             dlg.addEventListener('close', resolve);
