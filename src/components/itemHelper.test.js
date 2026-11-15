@@ -32,6 +32,14 @@ describe('itemHelper.canShareLink', () => {
         expect(canShareLink(videoItem, { CanShareMedia: false })).toBe(false);
     });
 
+    it('Should fail closed when the flag is missing or not a boolean', () => {
+        // An older server that does not send the field must not surface an action
+        // that the API would reject with SharingDisabled.
+        expect(canShareLink(videoItem, {})).toBe(false);
+        expect(canShareLink(videoItem, { CanShareMedia: 'true' })).toBe(false);
+        expect(canShareLink(videoItem, { CanShareMedia: 1 })).toBe(false);
+    });
+
     it('Should keep item rules when no user is supplied', () => {
         expect(canShareLink(videoItem)).toBe(true);
     });
