@@ -5,6 +5,7 @@ import { AppFeature } from 'constants/appFeature';
 import { ServerConnections } from 'lib/jellyfin-apiclient';
 
 import browser from '../scripts/browser';
+import { createShareLink } from './shareLinks/ShareLinksApi';
 import { copy } from '../scripts/clipboard';
 import dom from '../utils/dom';
 import globalize from '../lib/globalize';
@@ -23,6 +24,24 @@ const DOWNLOAD_ALL_TYPES = [
     BaseItemKind.Season,
     BaseItemKind.Series
 ];
+
+/** Duration used for a copied stream URL: short-lived so a pasted URL goes dead quickly. */
+const COPY_STREAM_URL_DURATION_SECONDS = 3600;
+
+/**
+ * Mints a short-lived scoped share link and copies it to the clipboard.
+ * @param {object} api - Current ApiClient.
+ * @param {object} item - The item being copied.
+ * @param {string} itemId - Id of the item.
+ * @returns {Promise<void>} Resolves once the URL is on the clipboard (or shown to copy).
+ */
+function copyStreamUrl(api, item, itemId) {
+    return createShareLink(itemId, { DurationSeconds: COPY_STREAM_URL_DURATION_SECONDS }, item.ServerId)
+        .then(shareLink => copy(shareLink.url))
+        .then(() => {
+            toast(globalize.translate('CopyStreamURLSuccess'));
+        });
+}
 
 function getDeleteLabel(type) {
     switch (type) {
@@ -199,11 +218,16 @@ export async function getCommands(options) {
                 icon: 'file_download'
             });
 
-            commands.push({
-                name: globalize.translate('CopyStreamURL'),
-                id: 'copy-stream',
-                icon: 'content_copy'
-            });
+            // Copying a stream URL used to hand out the caller's own session
+            // credential. It now mints a short-lived scoped share link instead, so the
+            // action is only offered when the server policy lets this user share media.
+            if (!browser.tv && itemHelper.canShareLink(item)) {
+                commands.push({
+                    name: globalize.translate('CopyStreamURL'),
+                    id: 'copy-stream',
+                    icon: 'content_copy'
+                });
+            }
         }
     }
 
@@ -482,13 +506,15 @@ function executeCommand(item, id, options) {
                 break;
             }
             case 'copy-stream': {
-                const downloadHref = getLibraryApi(api).getDownloadUrl({ itemId });
-                copy(downloadHref).then(() => {
-                    toast(globalize.translate('CopyStreamURLSuccess'));
-                }).catch(() => {
-                    prompt(globalize.translate('CopyStreamURL'), downloadHref);
-                });
-                getResolveFunction(resolve, id)();
+                copyStreamUrl(api, item, itemId)
+                    .catch(() => {
+                        // Never fall back to a session-bearing URL: if the scoped link
+                        // cannot be minted the action simply does not happen.
+                        toast(globalize.translate('MessageShareLinkCreateFailed'));
+                    })
+                    .finally(() => {
+                        getResolveFunction(resolve, id)();
+                    });
                 break;
             }
             case 'editsubtitles':
